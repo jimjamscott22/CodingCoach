@@ -1,0 +1,104 @@
+# Coding Coach
+
+Coding Coach is an interactive code-review mentor that helps programmers improve real-world coding skills with an emphasis on production readiness, maintainability, and clarity of thought. Users can paste or upload source code (JavaScript, Python, Java, or C), send it to the Claude API for structured analysis, and receive mentor-style feedback.
+
+## Simple PRD
+
+### Problem
+Developers want actionable, production-ready code review guidance that teaches judgment rather than enforcing rules.
+
+### Goal
+Provide fast, structured, mentor-like feedback with clear scoring, concrete examples, and measurable improvement over time.
+
+### Target Users
+- Early-career engineers leveling up code quality
+- Interview candidates practicing real-world code review skills
+- Teams standardizing review criteria
+
+### Core Requirements
+- Paste/upload code and get a structured review from Claude.
+- Show overall score (0-100) plus category breakdown:
+  Readability, Structure, Safety, Maintainability, Testability.
+- Explain why points were lost and how to regain them.
+- Provide concrete suggestions and optional refactored snippets.
+- Provide a coach’s summary in a constructive tone.
+- Support history and score deltas per file.
+- Support quick review vs deep dive verbosity toggle.
+- Highlight code sections tied to each suggestion.
+
+### Non-Goals (for v1)
+- Auto-fixing code.
+- Running code or compiling within the app.
+- Language coverage beyond JS, Python, Java, C.
+
+## Evaluation Principles
+The reviewer must explicitly reference these principles:
+1. Descriptive Naming
+2. Function Size & Responsibility
+3. Explicit Dependencies
+4. Error Handling Discipline
+5. Control Flow Simplicity
+6. Obvious Side Effects
+7. Avoid Magic Numbers
+
+## Scoring Rules
+- Each principle contributes to the total score.
+- The response must explain why points were lost and how to regain them.
+- Scores should be fair, consistent, and teaching-oriented.
+
+## UX Requirements
+- Dark mode by default with dark gray backgrounds and soft contrast
+- Blue accent buttons and highlights
+- Monospace font for code display
+- Syntax highlighting
+- Clear separation of Score, Explanations, Suggested Fixes
+
+## Interactive Features
+- Verbosity toggle (quick review vs deep dive)
+- Click suggestion to highlight the referenced code section
+- Resubmit improved code and view score deltas
+- History view showing progress per file
+
+## Stretch Features
+- Production Readiness Checklist
+- Security and performance warnings when applicable
+- Language-specific advice (Java OOP patterns, Pythonic idioms, JS async pitfalls)
+- Export reviews as Markdown or PDF
+
+## Tech Stack (Mainstream)
+- Frontend/App: Next.js (React) + TypeScript
+- Backend: Next.js API routes (Claude integration)
+- Auth + Storage + DB: Supabase
+- Styling: Tailwind CSS
+- Code editor: Monaco or CodeMirror with syntax highlighting
+
+## High-Level Architecture
+- UI: code editor, file upload, review dashboard, history view.
+- API: `/api/review` sends prompts to Claude and normalizes response.
+- DB: store files, reviews, suggestions, and score deltas by user.
+- Storage: optional code file uploads in Supabase storage.
+
+## Data Model (Draft)
+- `users` (Supabase auth)
+- `projects` (id, user_id, name)
+- `files` (id, project_id, path, language, created_at)
+- `reviews` (id, file_id, score, breakdown_json, summary, created_at)
+- `suggestions` (id, review_id, principle, severity, message, range_json)
+
+## Local Development (Planned)
+- `pnpm install`
+- `pnpm dev`
+
+## Environment Variables (Planned)
+- `ANTHROPIC_API_KEY`
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+
+## Milestones
+1. Scaffold Next.js app with dark UI and editor.
+2. Implement `/api/review` with Claude prompt + schema.
+3. Render score breakdown, suggestions, and summary.
+4. Add history, deltas, and suggestion highlighting.
+5. Polish UX, export, and stretch features.
+
