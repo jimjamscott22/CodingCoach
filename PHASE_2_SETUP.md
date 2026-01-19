@@ -2,20 +2,36 @@
 
 ## Prerequisites
 
-You need an Anthropic API key to use the Claude API. If you don't have one yet:
+You need a local LLM running via Ollama or LM Studio.
 
-1. Go to [https://console.anthropic.com/](https://console.anthropic.com/)
-2. Sign up or log in
-3. Navigate to **API Keys**
-4. Create a new API key
-5. Copy it (you won't be able to see it again)
+### Option A: Ollama
+
+1. Install Ollama: [https://ollama.com](https://ollama.com)
+1. Pull a model (example): `ollama pull llama3.1:8b-instruct`
+1. Make sure Ollama is running at `http://localhost:11434`
+
+### Option B: LM Studio
+
+1. Install LM Studio: [https://lmstudio.ai](https://lmstudio.ai)
+1. Download and load a chat model
+1. Start the local server (OpenAI-compatible) at `http://localhost:1234`
 
 ## Local Environment Variables
 
 Create a `.env.local` file in the project root:
 
 ```bash
-ANTHROPIC_API_KEY=your_api_key_here
+AI_PROVIDER=ollama
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=llama3.1:8b-instruct
+
+# OR use LM Studio
+# AI_PROVIDER=lmstudio
+# LMSTUDIO_BASE_URL=http://localhost:1234
+# LMSTUDIO_MODEL=your-model-id
+
+# Optional override for either provider
+# AI_MODEL=your-model-id
 ```
 
 ## Installation
@@ -34,7 +50,7 @@ yarn install
 
 Once the app is running (`pnpm dev`), you can test the `/api/review` endpoint:
 
-### Using curl:
+### Using curl
 
 ```bash
 curl -X POST http://localhost:3000/api/review \
@@ -46,7 +62,7 @@ curl -X POST http://localhost:3000/api/review \
   }'
 ```
 
-### Using fetch in JavaScript:
+### Using fetch in JavaScript
 
 ```javascript
 const response = await fetch('/api/review', {

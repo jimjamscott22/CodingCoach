@@ -1,5 +1,5 @@
 /**
- * PHASE 2: Claude Review API Contract
+ * PHASE 2: LLM Review API Contract
  * 
  * This file documents the exact API interface for easy reference
  */
@@ -49,7 +49,7 @@ Content-Type: application/json
 { "error": "Unsupported language. Supported: javascript, python, java, c" }
 
 500 Internal Server Error
-{ "error": "Claude API error: ..." }
+{ "error": "LLM API error: ..." }
 
 // EXAMPLE USAGE
 

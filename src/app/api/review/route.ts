@@ -1,10 +1,78 @@
 import { NextRequest, NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
 import { ReviewRequest, ReviewResponse } from "@/types/review";
 import { buildReviewPrompt } from "@/lib/promptBuilder";
 
-// Initialize Anthropic client (uses ANTHROPIC_API_KEY env var)
-const client = new Anthropic();
+type Provider = "ollama" | "lmstudio";
+
+const provider = (process.env.AI_PROVIDER || "ollama").toLowerCase() as Provider;
+const ollamaBaseUrl = process.env.OLLAMA_BASE_URL || "http://localhost:11434";
+const lmStudioBaseUrl = process.env.LMSTUDIO_BASE_URL || "http://localhost:1234";
+const model =
+  process.env.AI_MODEL ||
+  (provider === "lmstudio"
+    ? process.env.LMSTUDIO_MODEL || "lmstudio-model"
+    : process.env.OLLAMA_MODEL || "llama3.1:8b-instruct");
+
+function extractJson(text: string) {
+  const firstBrace = text.indexOf("{");
+  const lastBrace = text.lastIndexOf("}");
+  if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) {
+    return null;
+  }
+  const slice = text.slice(firstBrace, lastBrace + 1).trim();
+  try {
+    return JSON.parse(slice);
+  } catch {
+    return null;
+  }
+}
+
+async function callOllama(prompt: string) {
+  const response = await fetch(`${ollamaBaseUrl}/api/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model,
+      messages: [{ role: "user", content: prompt }],
+      stream: false,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Ollama error: ${response.status} ${errorText}`);
+  }
+
+  const data = (await response.json()) as {
+    message?: { content?: string };
+  };
+
+  return data.message?.content || "";
+}
+
+async function callLmStudio(prompt: string) {
+  const response = await fetch(`${lmStudioBaseUrl}/v1/chat/completions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model,
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.2,
+      max_tokens: 2048,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`LM Studio error: ${response.status} ${errorText}`);
+  }
+
+  const data = (await response.json()) as {
+    choices?: Array<{ message?: { content?: string } }>;
+  };
+
+  return data.choices?.[0]?.message?.content || "";
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -36,30 +104,18 @@ export async function POST(request: NextRequest) {
     // Build the prompt
     const prompt = buildReviewPrompt(code, language, verbosity);
 
-    // Call Claude API
-    const message = await client.messages.create({
-      model: "claude-3-5-sonnet-20241022",
-      max_tokens: 2048,
-      messages: [
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
-    });
-
-    // Extract the text response
+    // Call local LLM provider
     const responseText =
-      message.content[0].type === "text" ? message.content[0].text : "";
+      provider === "lmstudio"
+        ? await callLmStudio(prompt)
+        : await callOllama(prompt);
 
     // Parse the JSON response
-    let parsedResponse;
-    try {
-      parsedResponse = JSON.parse(responseText);
-    } catch {
-      console.error("Failed to parse Claude response:", responseText);
+    const parsedResponse = extractJson(responseText);
+    if (!parsedResponse) {
+      console.error("Failed to parse LLM response:", responseText);
       return NextResponse.json(
-        { error: "Failed to parse Claude response as JSON" },
+        { error: "Failed to parse LLM response as JSON" },
         { status: 500 }
       );
     }
@@ -77,18 +133,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(reviewResponse);
   } catch (error) {
     console.error("Review API error:", error);
-
-    // Handle specific Anthropic errors
-    if (error instanceof Anthropic.APIError) {
-      return NextResponse.json(
-        { error: `Claude API error: ${error.message}` },
-        { status: error.status || 500 }
-      );
-    }
-
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    const message = error instanceof Error ? error.message : "Internal server error";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
