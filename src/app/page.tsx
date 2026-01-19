@@ -11,6 +11,7 @@ import { useMemo, useState } from "react";
 
 type LanguageKey = "javascript" | "python" | "java" | "c";
 type Verbosity = "quick" | "deep";
+type Provider = "ollama" | "lmstudio";
 
 const languageOptions: Array<{ label: string; value: LanguageKey }> = [
   { label: "JavaScript", value: "javascript" },
@@ -66,11 +67,41 @@ export default function Home() {
   const [selectedSuggestionId, setSelectedSuggestionId] = useState<string | null>(
     null,
   );
+  const [provider, setProvider] = useState<Provider>("ollama");
+  const [model, setModel] = useState("llama3.1:8b-instruct");
+  const [healthStatus, setHealthStatus] = useState<string>("Not checked");
+  const [availableModels, setAvailableModels] = useState<string[]>([]);
+  const [checkingHealth, setCheckingHealth] = useState(false);
 
   const extensions = useMemo(
     () => [languageExtensions[language]],
     [language],
   );
+
+  const checkHealth = async () => {
+    setCheckingHealth(true);
+    setHealthStatus("Checking...");
+    try {
+      const response = await fetch("/api/health/provider", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider, model }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.ok) {
+        throw new Error(data.error || "Health check failed");
+      }
+      setAvailableModels(Array.isArray(data.availableModels) ? data.availableModels : []);
+      setHealthStatus(`${data.message} — ${data.baseUrl}`);
+      if (data.model) setModel(data.model as string);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Health check failed";
+      setHealthStatus(`Error: ${message}`);
+      setAvailableModels([]);
+    } finally {
+      setCheckingHealth(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
@@ -88,6 +119,30 @@ export default function Home() {
             </p>
           </div>
           <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900 px-3 py-2 text-xs">
+              <select
+                value={provider}
+                onChange={(event) => setProvider(event.target.value as Provider)}
+                className="rounded-md border border-zinc-800 bg-zinc-900 px-2 py-1 text-xs text-zinc-100 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              >
+                <option value="ollama">Ollama</option>
+                <option value="lmstudio">LM Studio</option>
+              </select>
+              <input
+                value={model}
+                onChange={(event) => setModel(event.target.value)}
+                placeholder="Model ID"
+                className="w-36 rounded-md border border-zinc-800 bg-zinc-900 px-2 py-1 text-xs text-zinc-100 placeholder:text-zinc-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+              <button
+                type="button"
+                onClick={checkHealth}
+                className="rounded-md bg-blue-500 px-3 py-1 font-semibold text-white shadow-sm shadow-blue-500/20 transition hover:bg-blue-400 disabled:cursor-not-allowed disabled:bg-zinc-700"
+                disabled={checkingHealth}
+              >
+                {checkingHealth ? "Checking" : "Check"}
+              </button>
+            </div>
             <div className="flex items-center gap-1 rounded-full border border-zinc-800 bg-zinc-900 p-1 text-xs">
               <button
                 type="button"
@@ -151,6 +206,23 @@ export default function Home() {
                 accept=".js,.jsx,.ts,.tsx,.py,.java,.c,.h,.cpp"
               />
             </label>
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-3 text-xs text-zinc-400">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-zinc-500">Provider</span>
+              <span className="text-zinc-200">{provider}</span>
+              <span className="text-zinc-500">Model</span>
+              <span className="text-zinc-200">{model || "(none)"}</span>
+            </div>
+            <div className="text-right text-xs text-zinc-400">
+              <p>{healthStatus}</p>
+              {availableModels.length > 0 ? (
+                <p className="mt-1 text-[11px] text-zinc-500">
+                  Models: {availableModels.slice(0, 5).join(", ")}
+                  {availableModels.length > 5 ? " …" : ""}
+                </p>
+              ) : null}
+            </div>
           </div>
 
           <div className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/70 shadow-lg shadow-black/30">

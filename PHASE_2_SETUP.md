@@ -122,3 +122,15 @@ The endpoint returns a JSON object with this structure:
 
 - `quick`: Brief, actionable review focusing on impactful issues
 - `deep`: Detailed, comprehensive review of all principles
+
+## Provider Health Check
+
+Use the built-in endpoint to verify connectivity to your local LLM:
+
+```bash
+curl -X POST http://localhost:3000/api/health/provider \
+  -H "Content-Type: application/json" \
+  -d '{"provider": "ollama"}'
+```
+
+The response includes `ok`, `provider`, `baseUrl`, `model`, and `availableModels`.

@@ -103,6 +103,7 @@ The reviewer must explicitly reference these principles:
 
 - `pnpm install`
 - `pnpm dev`
+- Optional: `curl -X POST /api/health/provider` to verify local LLM connectivity.
 
 ## Environment Variables (Planned)
 
@@ -122,5 +123,6 @@ The reviewer must explicitly reference these principles:
 2. Implement `/api/review` with local LLM prompt + schema.
 3. Render score breakdown, suggestions, and summary.
 4. Add history, deltas, and suggestion highlighting.
-5. Polish UX, export, and stretch features.
+5. Add provider health check and model selection UI.
+6. Polish UX, export, and stretch features.
 
