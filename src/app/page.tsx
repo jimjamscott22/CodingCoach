@@ -8,6 +8,10 @@ import { javascript } from "@codemirror/lang-javascript";
 import { python } from "@codemirror/lang-python";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { useMemo, useState } from "react";
+import { useReview } from "@/hooks/useReview";
+import { ScoreCard } from "@/components/ScoreCard";
+import { CoachSummary } from "@/components/CoachSummary";
+import { SuggestionsPanel } from "@/components/SuggestionsPanel";
 
 type LanguageKey = "javascript" | "python" | "java" | "c";
 type Verbosity = "quick" | "deep";
@@ -42,24 +46,6 @@ function run(data) {
 }
 `;
 
-const suggestions = [
-  {
-    id: "naming",
-    title: "Rename processUsers to clarify intent",
-    detail: "Use action-oriented naming like calculateAverageAge.",
-  },
-  {
-    id: "error",
-    title: "Handle errors explicitly",
-    detail: "Avoid empty catch blocks; log or rethrow with context.",
-  },
-  {
-    id: "magic",
-    title: "Reduce hidden assumptions",
-    detail: "Define a constant or guard for empty input before division.",
-  },
-];
-
 export default function Home() {
   const [code, setCode] = useState(defaultCode);
   const [language, setLanguage] = useState<LanguageKey>("javascript");
@@ -72,6 +58,8 @@ export default function Home() {
   const [healthStatus, setHealthStatus] = useState<string>("Not checked");
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [checkingHealth, setCheckingHealth] = useState(false);
+
+  const { review, loading, error, submitReview } = useReview();
 
   const extensions = useMemo(
     () => [languageExtensions[language]],
@@ -101,6 +89,15 @@ export default function Home() {
     } finally {
       setCheckingHealth(false);
     }
+  };
+
+  const handleSubmitReview = async () => {
+    setSelectedSuggestionId(null);
+    await submitReview({
+      code,
+      language,
+      verbosity,
+    });
   };
 
   return (
@@ -169,9 +166,11 @@ export default function Home() {
             </div>
             <button
               type="button"
-              className="rounded-full bg-blue-500 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-blue-500/20 transition hover:bg-blue-400"
+              onClick={handleSubmitReview}
+              disabled={loading}
+              className="rounded-full bg-blue-500 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-blue-500/20 transition hover:bg-blue-400 disabled:cursor-not-allowed disabled:bg-zinc-700"
             >
-              Submit for review
+              {loading ? "Reviewing..." : "Submit for review"}
             </button>
           </div>
         </div>
@@ -242,75 +241,20 @@ export default function Home() {
         </section>
 
         <aside className="space-y-4">
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-zinc-400">
-                Score
-              </h2>
-              <span className="text-3xl font-semibold text-blue-400">—</span>
+          {error && (
+            <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4">
+              <p className="text-sm text-red-300 font-medium">Error</p>
+              <p className="mt-1 text-sm text-red-200">{error}</p>
             </div>
-            <p className="mt-2 text-sm text-zinc-500">
-              Submit code to receive a 0-100 score with principled breakdowns.
-            </p>
-            <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-              {[
-                "Readability",
-                "Structure",
-                "Safety",
-                "Maintainability",
-                "Testability",
-              ].map((label) => (
-                <div
-                  key={label}
-                  className="flex items-center justify-between rounded-xl border border-zinc-800 bg-zinc-900/70 px-3 py-2 text-xs text-zinc-300"
-                >
-                  <span>{label}</span>
-                  <span className="text-zinc-500">—</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4">
-            <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-zinc-400">
-              Coach Summary
-            </h2>
-            <p className="mt-2 text-sm text-zinc-400">
-              Your mentor-style summary will show up here with concrete next
-              steps and confidence boosters.
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-zinc-400">
-                Suggestions
-              </h2>
-              <span className="text-xs text-zinc-500">Click to focus</span>
-            </div>
-            <div className="mt-3 space-y-2">
-              {suggestions.map((suggestion) => {
-                const isSelected = suggestion.id === selectedSuggestionId;
-                return (
-                  <button
-                    key={suggestion.id}
-                    type="button"
-                    onClick={() => setSelectedSuggestionId(suggestion.id)}
-                    className={`w-full rounded-xl border px-3 py-2 text-left text-sm transition ${
-                      isSelected
-                        ? "border-blue-500 bg-blue-500/10 text-blue-100"
-                        : "border-zinc-800 bg-zinc-900/70 text-zinc-200 hover:border-blue-500/60"
-                    }`}
-                  >
-                    <p className="font-medium">{suggestion.title}</p>
-                    <p className="mt-1 text-xs text-zinc-400">
-                      {suggestion.detail}
-                    </p>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          )}
+          <ScoreCard review={review} loading={loading} />
+          <CoachSummary review={review} loading={loading} />
+          <SuggestionsPanel
+            review={review}
+            loading={loading}
+            selectedSuggestionId={selectedSuggestionId}
+            onSelectSuggestion={setSelectedSuggestionId}
+          />
 
           <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4">
             <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-zinc-400">
