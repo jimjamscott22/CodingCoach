@@ -16,7 +16,8 @@ Provide fast, structured, mentor-like feedback with clear scoring, concrete exam
 
 - Early-career engineers leveling up code quality
 - Interview candidates practicing real-world code review skills
-- Teams standardizing review criteria
+- Students learning best practices beyond syntax
+- Developers preparing code for production deployment
 
 ### Core Requirements
 

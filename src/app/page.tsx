@@ -14,6 +14,8 @@ import { ScoreCard } from "@/components/ScoreCard";
 import { CoachSummary } from "@/components/CoachSummary";
 import { SuggestionsPanel } from "@/components/SuggestionsPanel";
 import { AuthModal } from "@/components/AuthModal";
+import { ReviewHistory } from "@/components/ReviewHistory";
+import type { ReviewWithFile } from "@/types/database";
 
 type LanguageKey = "javascript" | "python" | "java" | "c";
 type Verbosity = "quick" | "deep";
@@ -52,6 +54,7 @@ export default function Home() {
   const [code, setCode] = useState(defaultCode);
   const [language, setLanguage] = useState<LanguageKey>("javascript");
   const [verbosity, setVerbosity] = useState<Verbosity>("quick");
+  const [fileName, setFileName] = useState("example.js");
   const [selectedSuggestionId, setSelectedSuggestionId] = useState<string | null>(
     null,
   );
@@ -101,7 +104,17 @@ export default function Home() {
       code,
       language,
       verbosity,
+      fileName,
+      userId: user?.id,
     });
+  };
+
+  const handleSelectReview = (review: ReviewWithFile) => {
+    setCode(review.file.content);
+    setLanguage(review.file.language);
+    setFileName(review.file.name);
+    // Scroll to top to show the code
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   return (
@@ -206,6 +219,16 @@ export default function Home() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-3 text-sm text-zinc-300">
               <label className="text-xs uppercase tracking-[0.2em] text-zinc-500">
+                File Name
+              </label>
+              <input
+                type="text"
+                value={fileName}
+                onChange={(e) => setFileName(e.target.value)}
+                placeholder="example.js"
+                className="rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+              <label className="text-xs uppercase tracking-[0.2em] text-zinc-500">
                 Language
               </label>
               <select
@@ -281,14 +304,7 @@ export default function Home() {
             onSelectSuggestion={setSelectedSuggestionId}
           />
 
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4">
-            <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-zinc-400">
-              History
-            </h2>
-            <p className="mt-2 text-sm text-zinc-400">
-              Review deltas and progress per file will appear here.
-            </p>
-          </div>
+          <ReviewHistory userId={user?.id || null} onSelectReview={handleSelectReview} />
         </aside>
       </main>
 
