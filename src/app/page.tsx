@@ -9,9 +9,11 @@ import { python } from "@codemirror/lang-python";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { useMemo, useState } from "react";
 import { useReview } from "@/hooks/useReview";
+import { useAuth } from "@/hooks/useAuth";
 import { ScoreCard } from "@/components/ScoreCard";
 import { CoachSummary } from "@/components/CoachSummary";
 import { SuggestionsPanel } from "@/components/SuggestionsPanel";
+import { AuthModal } from "@/components/AuthModal";
 
 type LanguageKey = "javascript" | "python" | "java" | "c";
 type Verbosity = "quick" | "deep";
@@ -58,8 +60,10 @@ export default function Home() {
   const [healthStatus, setHealthStatus] = useState<string>("Not checked");
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [checkingHealth, setCheckingHealth] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   const { review, loading, error, submitReview } = useReview();
+  const { user, loading: authLoading, signOut } = useAuth();
 
   const extensions = useMemo(
     () => [languageExtensions[language]],
@@ -116,6 +120,27 @@ export default function Home() {
             </p>
           </div>
           <div className="flex items-center gap-3">
+            {user && (
+              <div className="flex items-center gap-2 text-xs">
+                <span className="text-zinc-400">{user.email}</span>
+                <button
+                  type="button"
+                  onClick={() => signOut()}
+                  className="rounded-md border border-zinc-700 px-3 py-1 text-xs font-medium text-zinc-300 transition hover:border-zinc-600 hover:text-zinc-100"
+                >
+                  Sign Out
+                </button>
+              </div>
+            )}
+            {!user && !authLoading && (
+              <button
+                type="button"
+                onClick={() => setShowAuthModal(true)}
+                className="rounded-md bg-blue-500 px-3 py-1 text-xs font-semibold text-white transition hover:bg-blue-400"
+              >
+                Sign In
+              </button>
+            )}
             <div className="flex flex-wrap items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900 px-3 py-2 text-xs">
               <select
                 value={provider}
@@ -266,6 +291,8 @@ export default function Home() {
           </div>
         </aside>
       </main>
+
+      {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}
     </div>
   );
 }
