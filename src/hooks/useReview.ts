@@ -13,6 +13,8 @@ import { saveSuggestions } from "@/lib/database/suggestions";
 interface SubmitReviewRequest extends ReviewRequest {
   fileName?: string;
   userId?: string;
+  provider?: string;
+  model?: string;
 }
 
 interface UseReviewReturn {
@@ -42,6 +44,8 @@ export function useReview(): UseReviewReturn {
           code: request.code,
           language: request.language,
           verbosity: request.verbosity,
+          provider: request.provider,
+          model: request.model,
         }),
       });
 

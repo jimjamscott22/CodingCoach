@@ -59,7 +59,7 @@ export default function Home() {
     null,
   );
   const [provider, setProvider] = useState<Provider>("ollama");
-  const [model, setModel] = useState("llama3.1:8b-instruct");
+  const [model, setModel] = useState("");
   const [healthStatus, setHealthStatus] = useState<string>("Not checked");
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [checkingHealth, setCheckingHealth] = useState(false);
@@ -86,9 +86,17 @@ export default function Home() {
       if (!response.ok || !data.ok) {
         throw new Error(data.error || "Health check failed");
       }
-      setAvailableModels(Array.isArray(data.availableModels) ? data.availableModels : []);
+      const models = Array.isArray(data.availableModels) ? data.availableModels : [];
+      setAvailableModels(models);
       setHealthStatus(`${data.message} — ${data.baseUrl}`);
-      if (data.model) setModel(data.model as string);
+      // Auto-select model: keep current if valid, otherwise use first available or API default
+      if (models.length > 0) {
+        if (!model || !models.includes(model)) {
+          setModel(models.includes(data.model) ? data.model : models[0]);
+        }
+      } else if (data.model) {
+        setModel(data.model as string);
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Health check failed";
       setHealthStatus(`Error: ${message}`);
@@ -106,6 +114,8 @@ export default function Home() {
       verbosity,
       fileName,
       userId: user?.id,
+      provider,
+      model,
     });
   };
 
@@ -157,18 +167,32 @@ export default function Home() {
             <div className="flex flex-wrap items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900 px-3 py-2 text-xs">
               <select
                 value={provider}
-                onChange={(event) => setProvider(event.target.value as Provider)}
+                onChange={(event) => {
+                  setProvider(event.target.value as Provider);
+                  setAvailableModels([]);
+                  setModel("");
+                  setHealthStatus("Not checked");
+                }}
                 className="rounded-md border border-zinc-800 bg-zinc-900 px-2 py-1 text-xs text-zinc-100 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               >
                 <option value="ollama">Ollama</option>
                 <option value="lmstudio">LM Studio</option>
               </select>
-              <input
+              <select
                 value={model}
                 onChange={(event) => setModel(event.target.value)}
-                placeholder="Model ID"
-                className="w-36 rounded-md border border-zinc-800 bg-zinc-900 px-2 py-1 text-xs text-zinc-100 placeholder:text-zinc-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              />
+                className="w-44 rounded-md border border-zinc-800 bg-zinc-900 px-2 py-1 text-xs text-zinc-100 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              >
+                {availableModels.length === 0 ? (
+                  <option value="">Click Check to load models</option>
+                ) : (
+                  availableModels.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))
+                )}
+              </select>
               <button
                 type="button"
                 onClick={checkHealth}
@@ -263,12 +287,11 @@ export default function Home() {
             </div>
             <div className="text-right text-xs text-zinc-400">
               <p>{healthStatus}</p>
-              {availableModels.length > 0 ? (
+              {availableModels.length > 0 && (
                 <p className="mt-1 text-[11px] text-zinc-500">
-                  Models: {availableModels.slice(0, 5).join(", ")}
-                  {availableModels.length > 5 ? " …" : ""}
+                  {availableModels.length} model{availableModels.length !== 1 ? "s" : ""} available
                 </p>
-              ) : null}
+              )}
             </div>
           </div>
 

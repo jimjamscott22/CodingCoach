@@ -4,14 +4,15 @@ import { buildReviewPrompt } from "@/lib/promptBuilder";
 
 type Provider = "ollama" | "lmstudio";
 
-const provider = (process.env.AI_PROVIDER || "ollama").toLowerCase() as Provider;
+const defaultProvider = (process.env.AI_PROVIDER || "ollama").toLowerCase() as Provider;
 const ollamaBaseUrl = process.env.OLLAMA_BASE_URL || "http://localhost:11434";
 const lmStudioBaseUrl = process.env.LMSTUDIO_BASE_URL || "http://localhost:1234";
-const model =
-  process.env.AI_MODEL ||
-  (provider === "lmstudio"
-    ? process.env.LMSTUDIO_MODEL || "lmstudio-model"
-    : process.env.OLLAMA_MODEL || "llama3.1:8b-instruct");
+
+function getDefaultModel(provider: Provider) {
+  if (process.env.AI_MODEL) return process.env.AI_MODEL;
+  if (provider === "lmstudio") return process.env.LMSTUDIO_MODEL || "lmstudio-model";
+  return process.env.OLLAMA_MODEL || "llama3.1:8b-instruct";
+}
 
 function extractJson(text: string) {
   const firstBrace = text.indexOf("{");
@@ -27,7 +28,7 @@ function extractJson(text: string) {
   }
 }
 
-async function callOllama(prompt: string) {
+async function callOllama(prompt: string, model: string) {
   const response = await fetch(`${ollamaBaseUrl}/api/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -50,7 +51,7 @@ async function callOllama(prompt: string) {
   return data.message?.content || "";
 }
 
-async function callLmStudio(prompt: string) {
+async function callLmStudio(prompt: string, model: string) {
   const response = await fetch(`${lmStudioBaseUrl}/v1/chat/completions`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -76,8 +77,12 @@ async function callLmStudio(prompt: string) {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = (await request.json()) as ReviewRequest;
+    const body = (await request.json()) as ReviewRequest & { provider?: Provider; model?: string };
     const { code, language, verbosity = "quick" } = body;
+
+    // Get provider and model from request or use defaults
+    const provider = (body.provider || defaultProvider) as Provider;
+    const model = body.model || getDefaultModel(provider);
 
     // Validate input
     if (!code || !language) {
@@ -107,8 +112,8 @@ export async function POST(request: NextRequest) {
     // Call local LLM provider
     const responseText =
       provider === "lmstudio"
-        ? await callLmStudio(prompt)
-        : await callOllama(prompt);
+        ? await callLmStudio(prompt, model)
+        : await callOllama(prompt, model);
 
     // Parse the JSON response
     const parsedResponse = extractJson(responseText);
