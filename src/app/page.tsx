@@ -15,6 +15,8 @@ import { CoachSummary } from "@/components/CoachSummary";
 import { SuggestionsPanel } from "@/components/SuggestionsPanel";
 import { AuthModal } from "@/components/AuthModal";
 import { ReviewHistory } from "@/components/ReviewHistory";
+import { CodeOutput } from "@/components/CodeOutput";
+import { runCode, canRunLanguage, isPyodideLoaded, type RunResult } from "@/lib/codeRunner";
 import type { ReviewWithFile } from "@/types/database";
 
 type LanguageKey = "javascript" | "python" | "java" | "c";
@@ -35,7 +37,8 @@ const languageExtensions: Record<LanguageKey, Extension> = {
   c: cpp(),
 };
 
-const defaultCode = `function processUsers(users) {
+const defaultCodeExamples: Record<LanguageKey, string> = {
+  javascript: `function processUsers(users) {
   let totalAge = 0;
   for (let i = 0; i < users.length; i++) {
     totalAge += users[i].age;
@@ -48,13 +51,76 @@ function run(data) {
     return processUsers(data);
   } catch (error) {}
 }
-`;
+`,
+  python: `def process_users(users):
+    total_age = 0
+    for i in range(len(users)):
+        total_age += users[i]["age"]
+    return total_age / len(users)
+
+def run(data):
+    try:
+        return process_users(data)
+    except:
+        pass
+`,
+  java: `public class UserProcessor {
+    public static double processUsers(User[] users) {
+        int totalAge = 0;
+        for (int i = 0; i < users.length; i++) {
+            totalAge += users[i].age;
+        }
+        return totalAge / users.length;
+    }
+
+    public static Double run(User[] data) {
+        try {
+            return processUsers(data);
+        } catch (Exception e) {}
+        return null;
+    }
+}
+`,
+  c: `#include <stdio.h>
+
+double process_users(int ages[], int count) {
+    int total_age = 0;
+    for (int i = 0; i < count; i++) {
+        total_age += ages[i];
+    }
+    return total_age / count;
+}
+
+int main() {
+    int ages[] = {25, 30, 35};
+    double avg = process_users(ages, 3);
+    printf("Average: %f\\n", avg);
+    return 0;
+}
+`,
+};
+
+const fileExtensions: Record<LanguageKey, string> = {
+  javascript: "js",
+  python: "py",
+  java: "java",
+  c: "c",
+};
 
 export default function Home() {
-  const [code, setCode] = useState(defaultCode);
+  const [code, setCode] = useState(defaultCodeExamples.javascript);
   const [language, setLanguage] = useState<LanguageKey>("javascript");
   const [verbosity, setVerbosity] = useState<Verbosity>("quick");
   const [fileName, setFileName] = useState("example.js");
+
+  const handleLanguageChange = (newLanguage: LanguageKey) => {
+    const currentIsDefault = Object.values(defaultCodeExamples).includes(code);
+    setLanguage(newLanguage);
+    if (currentIsDefault) {
+      setCode(defaultCodeExamples[newLanguage]);
+      setFileName(`example.${fileExtensions[newLanguage]}`);
+    }
+  };
   const [selectedSuggestionId, setSelectedSuggestionId] = useState<string | null>(
     null,
   );
@@ -64,6 +130,9 @@ export default function Home() {
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [checkingHealth, setCheckingHealth] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [runResult, setRunResult] = useState<RunResult | null>(null);
+  const [runningCode, setRunningCode] = useState(false);
+  const [pyodideLoading, setPyodideLoading] = useState(false);
 
   const { review, loading, error, submitReview } = useReview();
   const { user, loading: authLoading, signOut } = useAuth();
@@ -103,6 +172,26 @@ export default function Home() {
       setAvailableModels([]);
     } finally {
       setCheckingHealth(false);
+    }
+  };
+
+  const handleRunCode = async () => {
+    if (!canRunLanguage(language)) return;
+
+    setRunningCode(true);
+    setRunResult(null);
+
+    // Check if Pyodide needs to load (only for Python, first run)
+    if (language === "python" && !isPyodideLoaded()) {
+      setPyodideLoading(true);
+    }
+
+    try {
+      const result = await runCode(code, language);
+      setRunResult(result);
+    } finally {
+      setRunningCode(false);
+      setPyodideLoading(false);
     }
   };
 
@@ -258,7 +347,7 @@ export default function Home() {
               <select
                 value={language}
                 onChange={(event) =>
-                  setLanguage(event.target.value as LanguageKey)
+                  handleLanguageChange(event.target.value as LanguageKey)
                 }
                 className="rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               >
@@ -268,6 +357,16 @@ export default function Home() {
                   </option>
                 ))}
               </select>
+              {canRunLanguage(language) && (
+                <button
+                  type="button"
+                  onClick={handleRunCode}
+                  disabled={runningCode}
+                  className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:bg-zinc-700"
+                >
+                  {runningCode ? "Running..." : "Run"}
+                </button>
+              )}
             </div>
             <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-zinc-700 px-3 py-2 text-xs uppercase tracking-[0.2em] text-zinc-400 transition hover:border-blue-500 hover:text-blue-300">
               Upload file
@@ -306,9 +405,20 @@ export default function Home() {
             />
           </div>
           <div className="flex items-center justify-between text-xs text-zinc-500">
-            <span>Syntax highlighted editor with monospace styling.</span>
+            <span>
+              {canRunLanguage(language)
+                ? "Run code in-browser before submitting for review."
+                : `In-browser execution not available for ${language === "java" ? "Java" : "C"}.`}
+            </span>
             <span>Verbosity: {verbosity === "quick" ? "Quick" : "Deep"}</span>
           </div>
+
+          <CodeOutput
+            result={runResult}
+            loading={runningCode}
+            pyodideLoading={pyodideLoading}
+            language={language}
+          />
         </section>
 
         <aside className="space-y-4">
