@@ -16,6 +16,8 @@ import { SuggestionsPanel } from "@/components/SuggestionsPanel";
 import { AuthModal } from "@/components/AuthModal";
 import { ReviewHistory } from "@/components/ReviewHistory";
 import { CodeOutput } from "@/components/CodeOutput";
+import { ChatDialog } from "@/components/ChatDialog";
+import { DailyTip } from "@/components/DailyTip";
 import { runCode, canRunLanguage, isPyodideLoaded, type RunResult } from "@/lib/codeRunner";
 import type { ReviewWithFile } from "@/types/database";
 
@@ -218,6 +220,8 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
+      <DailyTip />
+
       <header className="border-b border-zinc-800/80 bg-zinc-950/80 backdrop-blur">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-6">
           <div>
@@ -442,6 +446,13 @@ export default function Home() {
       </main>
 
       {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}
+
+      <ChatDialog
+        provider={provider}
+        model={model}
+        codeContext={code}
+        language={language}
+      />
     </div>
   );
 }
