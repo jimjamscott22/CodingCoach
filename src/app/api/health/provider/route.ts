@@ -2,21 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 
 type Provider = "ollama" | "lmstudio";
 
-const providerDefault = (process.env.AI_PROVIDER || "ollama").toLowerCase() as Provider;
 const ollamaBaseUrl = process.env.OLLAMA_BASE_URL || "http://localhost:11434";
 const lmStudioBaseUrl = process.env.LMSTUDIO_BASE_URL || "http://localhost:1234";
-
-const defaultModel = (provider: Provider) => {
-  if (process.env.AI_MODEL) return process.env.AI_MODEL;
-  if (provider === "lmstudio") return process.env.LMSTUDIO_MODEL || "lmstudio-model";
-  return process.env.OLLAMA_MODEL || "llama3.1:8b-instruct";
-};
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({} as Record<string, unknown>));
-    const provider = ((body.provider as string) || providerDefault) as Provider;
-    const model = (body.model as string) || defaultModel(provider);
+    const provider = ((body.provider as string) || "ollama") as Provider;
 
     if (!["ollama", "lmstudio"].includes(provider)) {
       return NextResponse.json(
@@ -44,7 +36,6 @@ export async function POST(request: NextRequest) {
         ok: true,
         provider,
         baseUrl: ollamaBaseUrl,
-        model,
         availableModels,
         message: "Ollama reachable",
       });
@@ -68,7 +59,6 @@ export async function POST(request: NextRequest) {
       ok: true,
       provider,
       baseUrl: lmStudioBaseUrl,
-      model,
       availableModels,
       message: "LM Studio reachable",
     });

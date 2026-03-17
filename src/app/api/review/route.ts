@@ -4,15 +4,8 @@ import { buildReviewPrompt } from "@/lib/promptBuilder";
 
 type Provider = "ollama" | "lmstudio";
 
-const defaultProvider = (process.env.AI_PROVIDER || "ollama").toLowerCase() as Provider;
 const ollamaBaseUrl = process.env.OLLAMA_BASE_URL || "http://localhost:11434";
 const lmStudioBaseUrl = process.env.LMSTUDIO_BASE_URL || "http://localhost:1234";
-
-function getDefaultModel(provider: Provider) {
-  if (process.env.AI_MODEL) return process.env.AI_MODEL;
-  if (provider === "lmstudio") return process.env.LMSTUDIO_MODEL || "lmstudio-model";
-  return process.env.OLLAMA_MODEL || "llama3.1:8b-instruct";
-}
 
 function extractJson(text: string) {
   const firstBrace = text.indexOf("{");
@@ -80,14 +73,19 @@ export async function POST(request: NextRequest) {
     const body = (await request.json()) as ReviewRequest & { provider?: Provider; model?: string };
     const { code, language, verbosity = "quick" } = body;
 
-    // Get provider and model from request or use defaults
-    const provider = (body.provider || defaultProvider) as Provider;
-    const model = body.model || getDefaultModel(provider);
+    const provider = (body.provider || "ollama") as Provider;
+    const model = body.model as string | undefined;
 
-    // Validate input
     if (!code || !language) {
       return NextResponse.json(
         { error: "Missing required fields: code and language" },
+        { status: 400 }
+      );
+    }
+
+    if (!model) {
+      return NextResponse.json(
+        { error: "No model selected. Click Check to load models, then select one." },
         { status: 400 }
       );
     }

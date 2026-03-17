@@ -9,17 +9,13 @@ import { python } from "@codemirror/lang-python";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { useMemo, useState } from "react";
 import { useReview } from "@/hooks/useReview";
-import { useAuth } from "@/hooks/useAuth";
 import { ScoreCard } from "@/components/ScoreCard";
 import { CoachSummary } from "@/components/CoachSummary";
 import { SuggestionsPanel } from "@/components/SuggestionsPanel";
-import { AuthModal } from "@/components/AuthModal";
-import { ReviewHistory } from "@/components/ReviewHistory";
 import { CodeOutput } from "@/components/CodeOutput";
 import { ChatDialog } from "@/components/ChatDialog";
 import { DailyTip } from "@/components/DailyTip";
 import { runCode, canRunLanguage, isPyodideLoaded, type RunResult } from "@/lib/codeRunner";
-import type { ReviewWithFile } from "@/types/database";
 
 type LanguageKey = "javascript" | "python" | "java" | "c";
 type Verbosity = "quick" | "deep";
@@ -131,13 +127,11 @@ export default function Home() {
   const [healthStatus, setHealthStatus] = useState<string>("Not checked");
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [checkingHealth, setCheckingHealth] = useState(false);
-  const [showAuthModal, setShowAuthModal] = useState(false);
   const [runResult, setRunResult] = useState<RunResult | null>(null);
   const [runningCode, setRunningCode] = useState(false);
   const [pyodideLoading, setPyodideLoading] = useState(false);
 
   const { review, loading, error, submitReview } = useReview();
-  const { user, loading: authLoading, signOut } = useAuth();
 
   const extensions = useMemo(
     () => [languageExtensions[language]],
@@ -160,13 +154,9 @@ export default function Home() {
       const models = Array.isArray(data.availableModels) ? data.availableModels : [];
       setAvailableModels(models);
       setHealthStatus(`${data.message} — ${data.baseUrl}`);
-      // Auto-select model: keep current if valid, otherwise use first available or API default
-      if (models.length > 0) {
-        if (!model || !models.includes(model)) {
-          setModel(models.includes(data.model) ? data.model : models[0]);
-        }
-      } else if (data.model) {
-        setModel(data.model as string);
+      // Reset model selection if current model is no longer available
+      if (model && models.length > 0 && !models.includes(model)) {
+        setModel("");
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Health check failed";
@@ -203,19 +193,9 @@ export default function Home() {
       code,
       language,
       verbosity,
-      fileName,
-      userId: user?.id,
       provider,
       model,
     });
-  };
-
-  const handleSelectReview = (review: ReviewWithFile) => {
-    setCode(review.file.content);
-    setLanguage(review.file.language);
-    setFileName(review.file.name);
-    // Scroll to top to show the code
-    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   return (
@@ -236,27 +216,6 @@ export default function Home() {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            {user && (
-              <div className="flex items-center gap-2 text-xs">
-                <span className="text-zinc-400">{user.email}</span>
-                <button
-                  type="button"
-                  onClick={() => signOut()}
-                  className="rounded-md border border-zinc-700 px-3 py-1 text-xs font-medium text-zinc-300 transition hover:border-zinc-600 hover:text-zinc-100"
-                >
-                  Sign Out
-                </button>
-              </div>
-            )}
-            {!user && !authLoading && (
-              <button
-                type="button"
-                onClick={() => setShowAuthModal(true)}
-                className="rounded-md bg-blue-500 px-3 py-1 text-xs font-semibold text-white transition hover:bg-blue-400"
-              >
-                Sign In
-              </button>
-            )}
             <div className="flex flex-wrap items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900 px-3 py-2 text-xs">
               <select
                 value={provider}
@@ -279,11 +238,14 @@ export default function Home() {
                 {availableModels.length === 0 ? (
                   <option value="">Click Check to load models</option>
                 ) : (
-                  availableModels.map((m) => (
-                    <option key={m} value={m}>
-                      {m}
-                    </option>
-                  ))
+                  <>
+                    <option value="">— select a model —</option>
+                    {availableModels.map((m) => (
+                      <option key={m} value={m}>
+                        {m}
+                      </option>
+                    ))}
+                  </>
                 )}
               </select>
               <button
@@ -441,11 +403,8 @@ export default function Home() {
             onSelectSuggestion={setSelectedSuggestionId}
           />
 
-          <ReviewHistory userId={user?.id || null} onSelectReview={handleSelectReview} />
         </aside>
       </main>
-
-      {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}
 
       <ChatDialog
         provider={provider}
