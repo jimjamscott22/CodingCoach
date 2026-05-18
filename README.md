@@ -114,9 +114,6 @@ The reviewer must explicitly reference these principles:
 - `OLLAMA_MODEL` (default: llama3.1:8b-instruct)
 - `LMSTUDIO_MODEL` (default: lmstudio-model)
 - `AI_MODEL` (optional override)
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY`
 
 ## Milestones
 
